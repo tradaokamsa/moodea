@@ -6,6 +6,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Auth routes
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
 // Placeholder for routes
 // const spotifyRoutes = require('./routes/spotify');
 // app.use('/api/spotify', spotifyRoutes);
