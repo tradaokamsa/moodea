@@ -77,9 +77,40 @@ const getUserProfile = async (accessToken) => {
   return response.data;
 };
 
+// Function to make Spotify API requests with access token (automatically refreshes token if needed)
+const makeSpotifyRequest = async (endpoint, method = 'GET', data = null, user) => {
+  // Check if token is expired or about to expire (within 5 minutes)
+  const isTokenExpired = new Date(user.tokenExpiresAt) - new Date() < 300000; // 5 minutes in milliseconds
+
+  if (isTokenExpired) {
+    // Refresh the token
+    const newTokens = await refreshAccessToken(user.refreshToken);
+    
+    // Update user's tokens in database
+    user.accessToken = newTokens.access_token;
+    user.refreshToken = newTokens.refresh_token || user.refreshToken; // Keep old refresh token if new one isn't provided
+    user.tokenExpiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
+    await user.save();
+  }
+
+  // Make the request with the current/updated access token
+  const response = await axios({
+    method,
+    url: `https://api.spotify.com/v1${endpoint}`,
+    headers: {
+      'Authorization': `Bearer ${user.accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    data
+  });
+
+  return response.data;
+};
+
 module.exports = {
   getAuthUrl,
   getTokens,
   refreshAccessToken,
-  getUserProfile
-}; 
+  getUserProfile,
+  makeSpotifyRequest
+};
