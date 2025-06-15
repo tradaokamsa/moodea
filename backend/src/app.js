@@ -10,9 +10,9 @@ app.use(express.json());
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
-// Placeholder for routes
-// const spotifyRoutes = require('./routes/spotify');
-// app.use('/api/spotify', spotifyRoutes);
+// Spotify routes
+const spotifyRoutes = require('./routes/spotify');
+app.use('/api/spotify', spotifyRoutes);
 
 app.get('/', (req, res) => {
   res.send('Moodea Music Recommender Backend');
