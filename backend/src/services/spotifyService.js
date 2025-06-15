@@ -30,7 +30,8 @@ const getAuthUrl = () => {
     redirect_uri: SPOTIFY_REDIRECT_URI,
     response_type: 'code',
     state: state,
-    scope: scopes.join(' ')
+    scope: scopes.join(' '),
+    show_dialog: true
   });
 
   return `https://accounts.spotify.com/authorize?${params.toString()}`;

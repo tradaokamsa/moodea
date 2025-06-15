@@ -25,7 +25,7 @@ const verifyToken = (token) => {
 };
 
 const findOrCreateUser = async (spotifyUser, tokens) => {
-  const { id: spotifyId, email, displayName, country } = spotifyUser;
+  const { id: spotifyId, email, display_name, country } = spotifyUser;
   
   let user = await User.findOne({ spotifyId });
   
@@ -33,9 +33,18 @@ const findOrCreateUser = async (spotifyUser, tokens) => {
     user = await User.create({
       spotifyId,
       email,
-      displayName,
-      country
+      displayName: display_name,
+      country,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      tokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000)
     });
+  } else {
+    // Update existing user with new tokens
+    user.accessToken = tokens.access_token;
+    user.refreshToken = tokens.refresh_token;
+    user.tokenExpiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+    await user.save();
   }
   
   return user;
