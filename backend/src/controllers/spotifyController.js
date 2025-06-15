@@ -1,8 +1,8 @@
-const spotifyService = require('../services/spotifyService');
+const spotifyUtil = require('../utils/spotifyUtil');
 
 const getTopTracks = async (req, res) => {
     try {
-        const topTracks = await spotifyService.makeSpotifyRequest(
+        const topTracks = await spotifyUtil.makeSpotifyRequest(
             "/me/top/tracks",
             "GET",
             {
@@ -12,6 +12,7 @@ const getTopTracks = async (req, res) => {
             },
             req.user
         );
+        console.log('Top tracks fetched successfully:', topTracks);
         res.json(topTracks);
     } catch (error) {
         console.error('Error fetching top tracks:', error);
