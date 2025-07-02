@@ -1,26 +1,32 @@
 version: '3.8'
 services:
-  backend:
-    build: ./backend
+  backend_go:
+    build: ./backend_go
     ports:
-      - "5001:5001"
+      - "8080:8080"
+    restart: unless-stopped
     env_file:
-      - ./backend/.env
+      - ./backend_go/.env
     depends_on:
       - mongo
-    restart: unless-stopped
+#  backend_nodejs:
+#    build: ./backend_nodejs
+#    ports:
+#      - "5000:5000"
+#    restart: unless-stopped
   frontend:
     build: ./frontend
     ports:
       - "3000:3000"
-    depends_on:
-      - backend
     restart: unless-stopped
+    depends_on:
+      - backend_go
   mongo:
-    image: mongo:6
+    image: mongo:6.0
+    restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
-      - mongo-data:/data/db
+      - mongo_data:/data/db
 volumes:
-  mongo-data: 
+  mongo_data: 
