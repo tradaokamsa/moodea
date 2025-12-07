@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -41,6 +40,7 @@ func GetAuthURL(state string) string {
 		"playlist-modify-public",
 		"playlist-modify-private",
 		"user-modify-playback-state",
+		"user-read-recently-played",
 	}
 	params := url.Values{}
 	params.Add("client_id", os.Getenv("SPOTIFY_CLIENT_ID"))
@@ -72,7 +72,7 @@ func GetTokens(code string) (*SpotifyTokens, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func GetUserProfile(accessToken string) (*SpotifyUser, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func RefreshAccessToken(refreshToken string) (*SpotifyTokens, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -161,12 +161,17 @@ func MakeSpotifyRequest(endpoint, method string, params map[string]string, user 
 	var req *http.Request
 	var err error
 	urlStr := "https://api.spotify.com/v1" + endpoint
-	if method == "GET" && params != nil {
+	if method == "GET" && params != nil && len(params) > 0 {
 		q := url.Values{}
 		for k, v := range params {
-			q.Set(k, v)
+			// Only add non-empty values
+			if v != "" {
+				q.Set(k, v)
+			}
 		}
-		urlStr += "?" + q.Encode()
+		if len(q) > 0 {
+			urlStr += "?" + q.Encode()
+		}
 		req, err = http.NewRequest(method, urlStr, nil)
 	} else {
 		var body io.Reader
@@ -185,9 +190,19 @@ func MakeSpotifyRequest(endpoint, method string, params map[string]string, user 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("spotify request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	return io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Check status code and return error if not successful
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("spotify API returned status %d for %s: %s", resp.StatusCode, urlStr, string(bodyBytes))
+	}
+
+	return bodyBytes, nil
 }

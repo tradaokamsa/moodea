@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -64,7 +62,11 @@ func main() {
 			tokenExpiresAt,
 		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "db_failed"})
+			log.Printf("Database error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "db_failed",
+				"details": err.Error(),
+			})
 			return
 		}
 		token, err := services.GenerateToken(user.SpotifyID, user.SpotifyID, user.Email)
@@ -89,30 +91,19 @@ func main() {
 		c.JSON(http.StatusOK, user)
 	})
 
-	r.GET("/spotify/top-tracks", AuthMiddleware(), func(c *gin.Context) {
-		userId := c.GetString("userId")
-		user, err := models.GetUserByID(c, userId)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "user_not_found"})
-			return
-		}
-		params := map[string]string{
-			"time_range": c.DefaultQuery("time_range", "medium_term"),
-			"limit":      c.DefaultQuery("limit", "10"),
-			"offset":     c.DefaultQuery("offset", "0"),
-		}
-		resp, err := services.MakeSpotifyRequest("/me/top/tracks", "GET", params, user)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch top tracks"})
-			return
-		}
-		var data interface{}
-		if err := json.Unmarshal(resp, &data); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse response"})
-			return
-		}
-		c.JSON(http.StatusOK, data)
-	})
+	// Spotify endpoints
+	spotify := r.Group("/spotify")
+	spotify.Use(AuthMiddleware())
+	{
+		spotify.GET("/top-tracks", controllers.HandleGetTopTracks)
+		spotify.GET("/top-artists", controllers.HandleGetTopArtists)
+		spotify.GET("/artist-top-tracks", controllers.HandleGetArtistTopTracks)
+		spotify.GET("/album-tracks", controllers.HandleGetAlbumTracks)
+		spotify.GET("/current-user-playlists", controllers.HandleGetCurrentUserPlaylists)
+		spotify.GET("/playlist-tracks", controllers.HandleGetPlaylistTracks)
+		spotify.GET("/saved-tracks", controllers.HandleGetSavedTracks)
+		spotify.GET("/recently-played", controllers.HandleGetRecentlyPlayed)
+	}
 
 	// Interaction endpoints
 	r.POST("/interactions", AuthMiddleware(), controllers.RecordInteraction)
@@ -134,15 +125,6 @@ func main() {
 		log.Printf("Warning: Failed to initialize Kafka producer: %v", err)
 	}
 
-	// Initialize MongoDB indexes
-	ctx := context.Background()
-	if err := models.CreateInteractionIndexes(ctx); err != nil {
-		log.Printf("Warning: Failed to create interaction indexes: %v", err)
-	}
-	if err := models.CreateTrackCandidateIndexes(ctx); err != nil {
-		log.Printf("Warning: Failed to create track candidate indexes: %v", err)
-	}
-
 	r.Run(":8080")
 }
 
@@ -154,6 +136,11 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing_token"})
 			return
 		}
+
+		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+			tokenString = tokenString[7:]
+		}
+
 		claims, err := services.VerifyToken(tokenString)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid_token"})
