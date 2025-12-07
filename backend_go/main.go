@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,13 +10,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
+	"moodea/backend_go/internal/controllers"
 	"moodea/backend_go/internal/models"
 	"moodea/backend_go/internal/services"
 )
 
 func main() {
 	// Load environment variables from .env file
-	if err := godotenv.Load(); err != nil {
+	err := godotenv.Load()
+	if err != nil {
 		log.Println("No .env file found or error loading .env file")
 	}
 
@@ -69,6 +72,10 @@ func main() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "jwt_failed"})
 			return
 		}
+
+		// Spawn background goroutine for async feature extraction
+		go services.ProcessUserFeaturesAsync(user)
+
 		c.JSON(http.StatusOK, gin.H{"token": token, "user": user})
 	})
 
@@ -106,6 +113,35 @@ func main() {
 		}
 		c.JSON(http.StatusOK, data)
 	})
+
+	// Interaction endpoints
+	r.POST("/interactions", AuthMiddleware(), controllers.RecordInteraction)
+	r.GET("/interactions", AuthMiddleware(), controllers.GetUserInteractions)
+
+	// Recommendation endpoints
+	r.POST("/recommendations", AuthMiddleware(), controllers.GetRecommendations)
+
+	// Admin endpoints
+	admin := r.Group("/admin")
+	admin.Use(AuthMiddleware()) // TODO: Add admin authorization middleware
+	{
+		admin.GET("/track-candidates", controllers.GetTrackCandidates)
+		admin.POST("/track-candidates/:trackId/approve", controllers.ApproveTrackCandidate)
+	}
+
+	// Initialize Kafka producer on startup
+	if err := services.InitializeKafkaProducer(); err != nil {
+		log.Printf("Warning: Failed to initialize Kafka producer: %v", err)
+	}
+
+	// Initialize MongoDB indexes
+	ctx := context.Background()
+	if err := models.CreateInteractionIndexes(ctx); err != nil {
+		log.Printf("Warning: Failed to create interaction indexes: %v", err)
+	}
+	if err := models.CreateTrackCandidateIndexes(ctx); err != nil {
+		log.Printf("Warning: Failed to create track candidate indexes: %v", err)
+	}
 
 	r.Run(":8080")
 }
