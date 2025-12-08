@@ -19,6 +19,7 @@ var (
 
 const dbName = "moodea"
 const userCollectionName = "users"
+const trackCandidateCollectionName = "track_candidates"
 
 func getMongoClient() (*mongo.Client, error) {
 	mongoOnce.Do(func() {
@@ -44,4 +45,12 @@ func GetUserCollection() *mongo.Collection {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
 	return client.Database(dbName).Collection(userCollectionName)
+}
+
+func GetTrackCandidateCollection() *mongo.Collection {
+	client, err := getMongoClient()
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	return client.Database(dbName).Collection(trackCandidateCollectionName)
 }
