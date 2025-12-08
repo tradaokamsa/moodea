@@ -19,7 +19,7 @@ func NewWorkerPool(workers int) *WorkerPool {
 	}
 	wp := &WorkerPool{
 		workers: workers,
-		tasks:   make(chan func()),
+		tasks:   make(chan func(), workers*3),
 	}
 	wp.Start()
 	return wp
@@ -44,17 +44,23 @@ func (wp *WorkerPool) Submit(task func()) {
 
 // Wait waits for all tasks to complete and closes the pool
 func (wp *WorkerPool) Wait() {
-	close(wp.tasks)
 	wp.wg.Wait()
+}
+
+// Close closes the task channel, call after all submits are done
+func (wp *WorkerPool) Close() { 
+	close(wp.tasks) 
 }
 
 // BatchProcess processes items in batches concurrently
 func BatchProcess[T any](items []T, batchSize int, processor func([]T) error) error {
+	if len(items) == 0 {
+		return nil
+	}
 	if batchSize <= 0 {
 		batchSize = 1
 	}
-	workers := runtime.NumCPU()
-	wp := NewWorkerPool(workers)
+	wp := NewWorkerPool(runtime.NumCPU())
 
 	var (
 		errOnce sync.Once
@@ -77,6 +83,7 @@ func BatchProcess[T any](items []T, batchSize int, processor func([]T) error) er
 			}
 		})
 	}
+	wp.Close()
 	wp.Wait()
 	return retErr
 }
