@@ -1,0 +1,13 @@
+# Flink Jobs Dependencies
+apache-flink==1.18.0
+apache-flink-libraries==1.18.0
+
+# Kafka connector
+apache-flink-connector-kafka==3.0.1-1.18
+
+# Feast Feature Store
+feast==0.36.0
+
+# Utilities
+python-dotenv==1.0.0
+
