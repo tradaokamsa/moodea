@@ -141,3 +141,23 @@ func CreateTrackCandidateIndexes(ctx context.Context) error {
 	_, err := col.Indexes().CreateOne(ctx, model)
 	return err
 }
+
+func TrackCandidateExistByTrackID(ctx context.Context, trackID string) (bool, error) {
+    col := GetTrackCandidateCollection()
+    if col == nil {
+        return false, mongo.ErrClientDisconnected
+    }
+    filter := bson.M{
+        "track_id": trackID,
+    }
+    opts := options.FindOne().SetProjection(bson.M{"_id": 1})
+    err := col.FindOne(ctx, filter, opts).Err()
+    if err == mongo.ErrNoDocuments {
+        return false, nil // none exist
+    }
+    if err != nil {
+        return false, err
+    }
+    return true, nil 
+}
+
