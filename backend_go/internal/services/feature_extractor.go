@@ -139,16 +139,11 @@ func processTrackBatch(ctx context.Context, user *models.User, trackIDs []string
 	}
 
 	// Step 3d: Process each track to combine features and store
-	for _, trackID := range trackIDs {
-		features := reccobeatsFeatures[trackID]
-		if features == nil {
-			log.Printf("[processTrackBatch] WARNING: Track %s not found in reccobeatsFeatures map", trackID)
-		} else if features.Features == nil {
-			log.Printf("[processTrackBatch] WARNING: Track %s has nil Features", trackID)
-		} else if len(features.Features) == 0 {
-			log.Printf("[processTrackBatch] WARNING: Track %s has empty Features map", trackID)
-		} else {
-			log.Printf("[processTrackBatch] Track %s has %d features: %v", trackID, len(features.Features), features.Features)
+	// Only process tracks that have ReccoBeats features
+	for trackID, features := range reccobeatsFeatures {
+		if features == nil || features.Features == nil || len(features.Features) == 0 {
+			log.Printf("[processTrackBatch] Skipping track %s - no ReccoBeats features", trackID)
+			continue
 		}
 		processSingleTrack(ctx, user, trackID, spotifyMap[trackID], features, moodPredictions[trackID])
 	}
@@ -219,12 +214,6 @@ func processSingleTrack(
 		}
 	}
 
-	if reccobeatsFeaturesMap != nil && len(reccobeatsFeaturesMap) > 0 {
-		log.Printf("[processSingleTrack] Storing track %s with %d ReccoBeats features: %v", 
-			trackID, len(reccobeatsFeaturesMap), reccobeatsFeaturesMap)
-	} else {
-		log.Printf("[processSingleTrack] WARNING: Storing track %s with EMPTY ReccoBeats features", trackID)
-	}
 	// Create TrackCandidate
 	candidate := &models.TrackCandidate{
 		TrackID:            trackID,
