@@ -161,7 +161,7 @@ func HandleGetSavedTracks(c *gin.Context) {
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	data, err := services.GetSavedTracks(user, limit, offset)
+	data, err := services.GetSavedTracks(user, limit, offset, "")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch saved tracks", "details": err.Error()})
 		return
