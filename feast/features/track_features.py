@@ -31,6 +31,7 @@ track_features = FeatureView(
         Field(name="name", dtype=String),
         Field(name="artists", dtype=String),
         Field(name="album", dtype=String),
+        Field(name="duration_ms", dtype=Int64),
         # ReccoBeats audio features
         Field(name="danceability", dtype=Float32),
         Field(name="energy", dtype=Float32),
@@ -44,10 +45,8 @@ track_features = FeatureView(
         Field(name="key", dtype=Int64),
         Field(name="mode", dtype=Int64),
         # Mood predictions
-        Field(name="mood_happy", dtype=Int64),
-        Field(name="mood_sad", dtype=Int64),
-        Field(name="mood_energetic", dtype=Int64),
-        Field(name="mood_calm", dtype=Int64),
+        # sad, happy, energetic, calm: 0, 1, 2, 3
+        Field(name="mood", dtype=Int64),
         # Metadata
         Field(name="discovered_at", dtype=String),
         Field(name="event_timestamp", dtype=Int64),
