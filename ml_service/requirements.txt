@@ -15,9 +15,8 @@ numpy==1.24.3
 pandas==2.1.3
 scikit-learn==1.3.2
 
-# Deep Learning (choose one or both)
-# torch==2.1.0
-# tensorflow==2.15.0
+# Deep Learning
+torch==2.1.0
 
 # ANN Libraries (choose one)
 # faiss-cpu==1.7.4
@@ -30,3 +29,8 @@ mlflow==2.8.1
 httpx==0.25.1
 requests==2.31.0
 
+# Progress bars
+tqdm==4.66.1
+
+# Model serialization
+joblib==1.3.2
