@@ -1,0 +1,36 @@
+# ML Service Dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-dotenv==1.0.0
+
+# MongoDB
+pymongo==4.6.0
+
+# Feast Feature Store
+feast==0.36.0
+
+# ML Libraries
+numpy==1.24.3
+pandas==2.1.3
+scikit-learn==1.3.2
+
+# Deep Learning
+torch==2.1.0
+
+# ANN Libraries (choose one)
+# faiss-cpu==1.7.4
+# scann==1.2.9
+
+# MLFlow
+mlflow==2.8.1
+
+# HTTP Client
+httpx==0.25.1
+requests==2.31.0
+
+# Progress bars
+tqdm==4.66.1
+
+# Model serialization
+joblib==1.3.2
