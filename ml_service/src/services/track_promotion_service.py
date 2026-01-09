@@ -2,7 +2,7 @@
 Track Promotion Service
 Promotes approved tracks from MongoDB to Feast track_features FeatureView
 """
-from typing import Dict, Any
+from typing import Dict, Any, List
 import os
 from pymongo import MongoClient
 from datetime import datetime
