@@ -5,21 +5,15 @@ Provides convenient interface for interacting with Feast feature store
 import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from pathlib import Path
 
-# TODO: Import Feast SDK
-# from feast import FeatureStore, Entity, FeatureView
-# import pandas as pd
+from feast import FeatureStore
+import pandas as pd
 
 
 class FeastClient:
     """
     Wrapper for Feast feature store operations
-    
-    TODO: Implement
-    - Initialize Feast store
-    - Retrieve features from online store (Redis)
-    - Retrieve features from offline store (Parquet)
-    - Write features to offline store
     """
     
     def __init__(self, repo_path: Optional[str] = None):
@@ -30,8 +24,7 @@ class FeastClient:
             repo_path: Path to Feast repository
         """
         self.repo_path = repo_path or os.getenv("FEAST_REPO_PATH", "./feast")
-        # TODO: Initialize FeatureStore
-        # self.store = FeatureStore(repo_path=self.repo_path)
+        self.store = FeatureStore(repo_path=self.repo_path)
     
     def get_online_features(self, entity_ids: List[str], feature_view: str, features: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
         """
@@ -44,13 +37,33 @@ class FeastClient:
         
         Returns:
             Dict mapping entity_id to feature dict
-        
-        TODO: Implement
-        - Use Feast online retrieval API
-        - Return features for each entity
         """
-        # TODO: Implement online feature retrieval
-        return {}
+        from feast import EntityKey
+        from feast import Value
+
+        # Build entity keys
+        entity_keys = [
+            EntityKey(entity_name=feature_view.split("_")[0] + "_id", entity_value=Value(string_value=eid))
+            for eid in entity_ids
+        ]
+
+        # Get feature view
+        fv = self.store.get_feature_view(feature_view)
+
+        # Retrieve features
+        online_features = self.store.get_online_features(
+            features=[f"{feature_view}:{feat}" for feat in (features or [])],
+            entity_rows=[{"user_id": eid} for eid in entity_ids]
+        )
+
+        # Format response
+        result = {}
+        for i, eid in enumerate(entity_ids):
+            result[eid] = {
+                feat: online_features.to_dict()[f"{feature_view}:{feat}"][i]
+                for feat in (features or [])
+            }
+        return result
     
     def get_offline_features(self, entity_ids: List[str], feature_view: str, timestamp: Optional[datetime] = None) -> Any:
         """
@@ -63,14 +76,22 @@ class FeastClient:
         
         Returns:
             DataFrame with features
-        
-        TODO: Implement
-        - Use Feast historical API
-        - Load from Parquet/DuckDB
-        - Return as DataFrame
         """
-        # TODO: Implement offline feature retrieval
-        return None
+        # Create entity dataframe
+        entity_df = pd.DataFrame({
+            f"{feature_view.split('_')[0]}_id": entity_ids
+        })
+        if timestamp:
+            entity_df["event_timestamp"] = timestamp
+        else:
+            entity_df["event_timestamp"] = pd.Timestamp.now()
+
+        # Get historical features
+        training_df = self.store.get_historical_features(
+            entity_df=entity_df,
+            features=[f"{feature_view}:*"]
+        )
+        return training_df.to_df()
     
     def write_track_features(self, track_features: List[Dict[str, Any]]):
         """
@@ -78,14 +99,33 @@ class FeastClient:
         
         Args:
             track_features: List of track feature dicts
-        
-        TODO: Implement
-        - Convert to DataFrame
-        - Write to Parquet
-        - Update Feast registry
         """
-        # TODO: Implement track feature writing
-        pass
+        # Convert to DataFrame
+        df = pd.DataFrame(track_features)
+
+        # Ensure required columns
+        required_cols = ["track_id", "event_timestamp"]
+        for col in required_cols:
+            if col not in df.columns:
+                raise ValueError(f"Missing required column: {col}")
+
+        # Add created_at if missing
+        if "created_at" not in df.columns:
+            df["created_at"] = pd.Timestamp.now()
+
+        # Ensure event_timestamp is int64
+        if "event_timestamp" in df.columns:
+            df["event_timestamp"] = pd.to_datetime(df["event_timestamp"], unit="s")
+
+        # Write to Parquet
+        parquet_path = Path(self.repo_path) / "data" / "parquet" / "track_features.parquet"
+        parquet_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Append or overwrite based on existing file
+        if parquet_path.exists():
+            existing_df = pd.read_parquet(parquet_path)
+            df = pd.concat([existing_df, df]).drop_duplicates(subset=["track_id"], keep="last").reset_index(drop=True)
+        df.to_parquet(parquet_path, index=False)
     
     def materialize_features(self, feature_view: str, start_date: datetime, end_date: datetime):
         """
@@ -95,11 +135,11 @@ class FeastClient:
             feature_view: Name of feature view
             start_date: Start date for materialization
             end_date: End date for materialization
-        
-        TODO: Implement
-        - Use Feast materialize API
-        - Write to Redis
         """
-        # TODO: Implement materialization
-        pass
+        # Materialize features
+        self.store.materialize(
+            start_date=start_date,
+            end_date=end_date,
+            feature_views=[feature_view]
+        )
 

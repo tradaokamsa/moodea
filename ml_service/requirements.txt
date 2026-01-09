@@ -9,6 +9,8 @@ pymongo==4.6.0
 
 # Feast Feature Store
 feast==0.36.0
+feast[redis]==0.36.0
+redis==4.5.4
 
 # ML Libraries
 numpy==1.24.3
