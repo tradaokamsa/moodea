@@ -66,7 +66,7 @@ class TrackPromotionService:
             "mode": reccobeats_features.get("mode", 0),
             "mood": mood_features,
             "discovered_at": track_doc.get("created_at").isoformat() if track_doc.get("created_at") else "",
-            "event_timestamp": int(track_doc.get("created_at").timestamp()) if track_doc.get("created_at") else int(datetime.time()),
+            "event_timestamp": int(track_doc.get("created_at").timestamp()) if track_doc.get("created_at") else int(datetime.now().timestamp()),
         }   
 
         # Write to Feast

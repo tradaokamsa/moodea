@@ -136,11 +136,6 @@ async def get_recommendations(request: RecommendationRequest):
 async def promote_track(request: TrackPromotionRequest):
     """
     Promote approved track to Feast track_features FeatureView
-    
-    TODO: Implement
-    - Read TrackCandidate from MongoDB
-    - Write to Feast track_features (Parquet offline store)
-    - Update MongoDB: promoted=true
     """     
     success = track_promotion_service.promote_track(request.track_id)
     if success:
