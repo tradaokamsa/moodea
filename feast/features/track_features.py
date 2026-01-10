@@ -5,12 +5,13 @@ Global catalog of all discovered and approved tracks (offline-only)
 from datetime import timedelta
 from feast import Entity, FeatureView, Field
 from feast.types import Float32, String, Int64
+from feast.value_type import ValueType
 from feast.infra.offline_stores.file_source import FileSource
 
 track_entity = Entity(
     name="track_id",
     description="Spotify track ID",
-    value_type=String,
+    value_type=ValueType.STRING,
     join_keys=["track_id"],
 )
 

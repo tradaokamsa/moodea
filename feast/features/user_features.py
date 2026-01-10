@@ -5,12 +5,13 @@ User preferences and listening patterns (online + offline)
 from datetime import timedelta
 from feast import Entity, FeatureView, Field
 from feast.types import Float32, String, Int64, Array
+from feast.value_type import ValueType
 from feast.infra.offline_stores.file_source import FileSource
 
 user_entity = Entity(
     name="user_id",
     description="User ID",
-    value_type=String,
+    value_type=ValueType.STRING,
     join_keys=["user_id"],
 )
 

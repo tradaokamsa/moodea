@@ -24,6 +24,19 @@ class FeastClient:
             repo_path: Path to Feast repository
         """
         self.repo_path = repo_path or os.getenv("FEAST_REPO_PATH", "./feast")
+        
+        # Resolve to absolute path if relative
+        if not os.path.isabs(self.repo_path):
+            # Try to resolve relative to project root
+            # Option 1: If FEAST_REPO_PATH starts with ./, resolve from project root
+            if self.repo_path.startswith("./"):
+                # Get project root (assuming this is 4 levels up from this file)
+                project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+                self.repo_path = os.path.join(project_root, self.repo_path[2:])  # Remove "./"
+            else:
+                # Already relative path without ./, resolve from current working directory
+                self.repo_path = os.path.abspath(self.repo_path)
+
         self.store = FeatureStore(repo_path=self.repo_path)
     
     def get_online_features(self, entity_ids: List[str], feature_view: str, features: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
