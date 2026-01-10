@@ -8,8 +8,10 @@ import sys
 # Add models to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'models'))
 from models.mood.model import MoodPredictor, AudioFeatureProcessor
+from services.track_promotion_service import TrackPromotionService
 
 app = FastAPI(title="Moodea ML Service", version="1.0.0")
+track_promotion_service = TrackPromotionService()
 
 # Environment variables
 ML_SERVICE_PORT = int(os.getenv("ML_SERVICE_PORT", "8001"))
@@ -139,11 +141,15 @@ async def promote_track(request: TrackPromotionRequest):
     - Read TrackCandidate from MongoDB
     - Write to Feast track_features (Parquet offline store)
     - Update MongoDB: promoted=true
-    """
-    # TODO: Implement track promotion logic
-    # For now, return success to prevent 501 errors
-    # This allows the system to work while full implementation is in progress
-    return {"message": "Track promotion not yet fully implemented", "track_id": request.track_id, "promoted": False}
+    """     
+    success = track_promotion_service.promote_track(request.track_id)
+    if success:
+        return {"message": "Track promoted successfully", "track_id": request.track_id, "promoted": True}
+    else:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to promote track: {request.track_id}"
+        )
 
 
 @app.get("/health")
