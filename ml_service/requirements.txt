@@ -8,17 +8,17 @@ python-dotenv==1.0.0
 pymongo==4.6.0
 
 # Feast Feature Store
-feast==0.36.0
-feast[redis]==0.36.0
+feast>=0.40.0  # Upgrade to support numpy >= 1.26.0 for Python 3.12
+feast[redis]>=0.40.0
 redis==4.5.4
 
 # ML Libraries
-numpy==1.24.3
-pandas==2.1.3
-scikit-learn==1.3.2
+numpy>=1.26.0  # Python 3.12 requires numpy >= 1.26.0
+pandas>=2.1.3
+scikit-learn>=1.3.2
 
 # Deep Learning
-torch==2.1.0
+torch>=2.2.0  # Python 3.12 requires torch >= 2.2.0
 
 # ANN Libraries (choose one)
 # faiss-cpu==1.7.4
