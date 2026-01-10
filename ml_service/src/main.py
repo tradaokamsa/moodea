@@ -137,14 +137,20 @@ async def promote_track(request: TrackPromotionRequest):
     """
     Promote approved track to Feast track_features FeatureView
     """     
-    success = track_promotion_service.promote_track(request.track_id)
-    if success:
-        return {"message": "Track promoted successfully", "track_id": request.track_id, "promoted": True}
-    else:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to promote track: {request.track_id}"
-        )
+    try:
+        success = track_promotion_service.promote_track(request.track_id)
+        if success:
+            return {"message": "Track promoted successfully", "track_id": request.track_id, "promoted": True}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to promote track")
+    except ValueError as e:
+        # Track not found or not approved
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        # Log error and return generic message
+        import logging
+        logging.error(f"Error promoting track {request.track_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal error promoting track: {str(e)}")
 
 
 @app.get("/health")
