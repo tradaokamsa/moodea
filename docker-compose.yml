@@ -9,6 +9,8 @@ services:
       - ./backend_go/.env
     depends_on:
       - mongo
+      - redis
+      - ml_service
 #  backend_nodejs:
 #    build: ./backend_nodejs
 #    ports:
