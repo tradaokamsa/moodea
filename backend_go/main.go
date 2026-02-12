@@ -118,6 +118,7 @@ func main() {
 	{
 		admin.GET("/track-candidates", controllers.GetTrackCandidates)
 		admin.POST("/track-candidates/:trackId/approve", controllers.ApproveTrackCandidate)
+		admin.POST("/track-candidates/approve-all", controllers.ApproveAllTrackCandidates)
 	}
 
 	// Initialize Kafka producer on startup

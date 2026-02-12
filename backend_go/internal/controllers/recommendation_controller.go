@@ -160,6 +160,26 @@ func ApproveTrackCandidate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "track candidate approved", "track_id": trackID})
 }
 
+// ApproveAllTrackCandidates handles POST /admin/track-candidates/approve-all
+func ApproveAllTrackCandidates(c *gin.Context) {
+	userId := c.GetString("userId")
+	if userId == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	count, err := models.ApproveAllTrackCandidates(c.Request.Context(), userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  fmt.Sprintf("Approved %d track candidates", count),
+		"approved": count,
+	})
+}
+
 // Helper functions
 func getMLServiceURL() string {
 	// Default to localhost, can be overridden via environment variable
