@@ -50,48 +50,57 @@ class FeatureProcessor(nn.Module):
                     padding_idx=0  # 0 is reserved for padding/missing
                 )
     
+    def get_output_dim(self) -> int:
+        """Calculate total output dimension of processed features."""
+        total = 0
+        for config in self.feature_config.values():
+            if config['type'] == 'numerical':
+                total += config.get('dim', 1)
+            else:
+                total += config.get('dim', self.embedding_dim)
+        return total
+
     def forward(self, features: Dict[str, torch.Tensor]) -> torch.Tensor:
         """
         Process features into tensor representations
-        
+
         Args:
             features: Dict of feature_name -> tensor
-        
+
         Returns:
             Concatenated feature tensor [batch_size, feature_dim]
         """
         processed = []
-        
+        batch_size = features[list(features.keys())[0]].shape[0]
+        device = features[list(features.keys())[0]].device
+
         for feat_name, config in self.feature_config.items():
             if feat_name not in features:
                 # Missing feature - use zero tensor
                 if config['type'] == 'numerical':
-                    processed.append(torch.zeros(
-                        features[list(features.keys())[0]].shape[0],
-                        1,
-                        device=features[list(features.keys())[0]].device
-                    ))
+                    dim = config.get('dim', 1)
+                    processed.append(torch.zeros(batch_size, dim, device=device))
                 else:
                     processed.append(torch.zeros(
-                        features[list(features.keys())[0]].shape[0],
+                        batch_size,
                         config.get('dim', self.embedding_dim),
-                        device=features[list(features.keys())[0]].device
+                        device=device,
                     ))
                 continue
-            
+
             feat_tensor = features[feat_name]
-            
+
             if config['type'] == 'numerical':
-                # Numerical features: normalize if needed
+                # Numerical features (supports multi-dim via config 'dim')
                 if feat_tensor.dim() == 1:
                     feat_tensor = feat_tensor.unsqueeze(1)
                 processed.append(feat_tensor.float())
-            
+
             elif config['type'] == 'categorical':
                 # Single categorical: embedding lookup
                 emb = self.embeddings[feat_name](feat_tensor.long())
                 processed.append(emb)
-            
+
             elif config['type'] == 'multi_hot':
                 # Multi-hot categorical: bag of embeddings
                 # feat_tensor is [batch_size, max_items] with item IDs
@@ -103,47 +112,35 @@ class FeatureProcessor(nn.Module):
                 item_count = mask.sum(dim=1).clamp(min=1)  # Avoid division by zero
                 emb_avg = emb_sum / item_count
                 processed.append(emb_avg)
-        
+
         # Concatenate all processed features
         return torch.cat(processed, dim=1)
 
 
 def create_user_feature_config() -> Dict[str, Dict[str, Any]]:
     """
-    Create feature configuration for user features
-    
-    Returns:
-        Feature config dict for user features
+    Create feature configuration for user features.
+
+    Aligned with Feast schema in feast/features/user_features.py:
+      - listening_pattern_score  (Float32)
+      - preference_vector        (Array(Float32), 9-dim weighted avg of audio features)
+      - top_artists              (Array(String)  -> multi_hot int IDs)
+      - top_genres               (Array(String)  -> multi_hot int IDs)
     """
-    # Example configuration - adjust based on actual user features
     return {
-        # Numerical features (normalized)
-        'avg_listening_time': {'type': 'numerical'},
-        'total_tracks_played': {'type': 'numerical'},
-        'num_artists_followed': {'type': 'numerical'},
-        'num_playlists_created': {'type': 'numerical'},
-        
-        # Categorical features
-        'primary_genre': {
-            'type': 'categorical',
-            'size': 100,  # Adjust based on actual vocab size
-            'dim': 32
-        },
-        'listening_time_slot': {
-            'type': 'categorical',
-            'size': 24,  # 24 hours
-            'dim': 16
-        },
-        
-        # Multi-hot categorical (top artists, genres)
+        # Numerical features
+        'listening_pattern_score': {'type': 'numerical', 'dim': 1},
+        'preference_vector': {'type': 'numerical', 'dim': 9},  # 9 audio-feature dims
+
+        # Multi-hot categorical (IDs built from vocabulary during training)
         'top_artists': {
             'type': 'multi_hot',
-            'size': 10000,  # Adjust based on artist vocab size
+            'size': 10000,  # artist vocab size
             'dim': 64,
         },
         'top_genres': {
             'type': 'multi_hot',
-            'size': 100,  # Adjust based on genre vocab size
+            'size': 200,  # genre vocab size
             'dim': 32,
         },
     }
@@ -151,55 +148,30 @@ def create_user_feature_config() -> Dict[str, Dict[str, Any]]:
 
 def create_item_feature_config() -> Dict[str, Dict[str, Any]]:
     """
-    Create feature configuration for item (track) features
-    
-    Returns:
-        Feature config dict for item features
+    Create feature configuration for item (track) features.
+
+    Aligned with Feast schema in feast/features/track_features.py:
+      - danceability, energy, valence, tempo, acousticness,
+        instrumentalness, liveness, loudness, speechiness (Float32)
+      - key   (Int64, 0-11)
+      - mode  (Int64, 0-1)
+      - mood  (Int64, 0-3: sad/happy/energetic/calm)
     """
-    # Example configuration - adjust based on actual track features
     return {
-        # Numerical features (ReccoBeats audio features)
-        'danceability': {'type': 'numerical'},
-        'energy': {'type': 'numerical'},
-        'valence': {'type': 'numerical'},
-        'acousticness': {'type': 'numerical'},
-        'instrumentalness': {'type': 'numerical'},
-        'liveness': {'type': 'numerical'},
-        'speechiness': {'type': 'numerical'},
-        'tempo': {'type': 'numerical'},
-        'loudness': {'type': 'numerical'},
-        
-        # Mood predictions (numerical scores)
-        'mood_happy': {'type': 'numerical'},
-        'mood_sad': {'type': 'numerical'},
-        'mood_energetic': {'type': 'numerical'},
-        'mood_calm': {'type': 'numerical'},
-        
+        # Numerical audio features
+        'danceability':      {'type': 'numerical', 'dim': 1},
+        'energy':            {'type': 'numerical', 'dim': 1},
+        'valence':           {'type': 'numerical', 'dim': 1},
+        'tempo':             {'type': 'numerical', 'dim': 1},
+        'acousticness':      {'type': 'numerical', 'dim': 1},
+        'instrumentalness':  {'type': 'numerical', 'dim': 1},
+        'liveness':          {'type': 'numerical', 'dim': 1},
+        'loudness':          {'type': 'numerical', 'dim': 1},
+        'speechiness':       {'type': 'numerical', 'dim': 1},
+
         # Categorical features
-        'genre': {
-            'type': 'categorical',
-            'size': 100,  # Adjust based on genre vocab size
-            'dim': 32
-        },
-        'artist_id': {
-            'type': 'categorical',
-            'size': 10000,  # Adjust based on artist vocab size
-            'dim': 64
-        },
-        'key': {
-            'type': 'categorical',
-            'size': 12,  # 12 keys in music
-            'dim': 16
-        },
-        'mode': {
-            'type': 'categorical',
-            'size': 2,  # Major/Minor
-            'dim': 8
-        },
-        'time_signature': {
-            'type': 'categorical',
-            'size': 5,  # Common time signatures
-            'dim': 8
-        },
+        'key':  {'type': 'categorical', 'size': 12, 'dim': 16},  # 12 musical keys
+        'mode': {'type': 'categorical', 'size': 2,  'dim': 8},   # major / minor
+        'mood': {'type': 'categorical', 'size': 4,  'dim': 16},  # sad/happy/energetic/calm
     }
 

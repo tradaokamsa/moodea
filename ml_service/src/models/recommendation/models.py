@@ -54,13 +54,8 @@ class UserTower(nn.Module):
             embedding_dim=feature_embedding_dim
         )
         
-        # Calculate input dimension (sum of all processed feature dimensions)
-        # This is computed dynamically, but we'll approximate based on config
-        feature_processor_output_dim = sum(
-            config.get('dim', feature_embedding_dim) if config['type'] != 'numerical'
-            else 1
-            for config in feature_config.values()
-        )
+        # Calculate input dimension from feature processor
+        feature_processor_output_dim = self.feature_processor.get_output_dim()
         
         # Build feedforward layers
         layers = []
