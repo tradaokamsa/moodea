@@ -1,0 +1,14 @@
+.DS_Store
+.env
+278k_labelled_uri.csv
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+data/artifacts/
+data/events/
+data/datasets/
+.pytest_cache/
