@@ -1,7 +1,7 @@
 # Moodea ML recommendation service
 
 The raw catalog is intentionally not stored in Git. Before training or building
-the Docker image, place `278k_labelled_uri.csv` in the `ml_service/` directory,
+the Docker image, place `278k_labelled_uri.csv` in the `ml_service/two_stage/` directory,
 or set `CATALOG_CSV` to another compatible catalog path.
 
 This service provides a runnable two-stage recommendation backend:
@@ -15,7 +15,7 @@ The initial development artifacts are trained from the labelled track catalog an
 
 ## Local setup
 
-From `ml_service/`:
+From `ml_service/two_stage/`:
 
 ```sh
 python3 -m src.bootstrap --tracks 5000 --users 256 --epochs 5
