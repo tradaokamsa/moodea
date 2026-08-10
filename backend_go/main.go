@@ -3,8 +3,11 @@ package main
 import (
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
@@ -21,6 +24,15 @@ func main() {
 	}
 
 	r := gin.Default()
+
+	// CORS for frontend on http://localhost:3000
+	corsConfig := cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowCredentials: true,
+	}
+	r.Use(cors.New(corsConfig))
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Moodea Go backend (Gin) is running!"})
@@ -78,6 +90,24 @@ func main() {
 		// Spawn background goroutine for async feature extraction
 		go services.ProcessUserFeaturesAsync(user)
 
+		// If FRONTEND_URL is set, redirect to frontend callback with token in query,
+		// otherwise fall back to JSON response (useful for API testing/tools).
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL != "" {
+			redirectURL, err := url.Parse(frontendURL)
+			if err != nil {
+				log.Printf("Invalid FRONTEND_URL: %v", err)
+				c.JSON(http.StatusOK, gin.H{"token": token, "user": user})
+				return
+			}
+			redirectURL.Path = "/auth/callback"
+			q := redirectURL.Query()
+			q.Set("token", token)
+			redirectURL.RawQuery = q.Encode()
+			c.Redirect(http.StatusFound, redirectURL.String())
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{"token": token, "user": user})
 	})
 
@@ -103,6 +133,7 @@ func main() {
 		spotify.GET("/playlist-tracks", controllers.HandleGetPlaylistTracks)
 		spotify.GET("/saved-tracks", controllers.HandleGetSavedTracks)
 		spotify.GET("/recently-played", controllers.HandleGetRecentlyPlayed)
+		spotify.GET("/tracks", controllers.HandleGetTracks)
 	}
 
 	// Interaction endpoints
@@ -118,6 +149,7 @@ func main() {
 	{
 		admin.GET("/track-candidates", controllers.GetTrackCandidates)
 		admin.POST("/track-candidates/:trackId/approve", controllers.ApproveTrackCandidate)
+		admin.POST("/track-candidates/approve-all", controllers.ApproveAllTrackCandidates)
 	}
 
 	// Initialize Kafka producer on startup

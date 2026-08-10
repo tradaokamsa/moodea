@@ -76,6 +76,9 @@ func RecordInteraction(c *gin.Context) {
 		Context:         map[string]interface{}{},
 	})
 
+	// Invalidate recommendation cache so next request gets fresh results
+	InvalidateRecoCache(userId)
+
 	c.JSON(http.StatusOK, gin.H{"message": "interaction recorded"})
 }
 

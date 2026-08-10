@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"moodea/backend_go/internal/models"
 	"moodea/backend_go/internal/services"
@@ -188,4 +189,79 @@ func HandleGetRecentlyPlayed(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, data)
+}
+
+// HandleGetTracks returns basic info for a list of track IDs (used by recommendations UI)
+func HandleGetTracks(c *gin.Context) {
+	userId := c.GetString("userId")
+	user, err := models.GetUserByID(c, userId)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user_not_found"})
+		return
+	}
+
+	idsParam := c.Query("ids")
+	if idsParam == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ids is required"})
+		return
+	}
+	rawIDs := strings.Split(idsParam, ",")
+	var ids []string
+	var originalIDs []string
+	for _, id := range rawIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		originalIDs = append(originalIDs, id)
+		// Recommendations may send full Spotify URIs like "spotify:track:<id>"
+		id = strings.TrimPrefix(id, "spotify:track:")
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no_valid_ids"})
+		return
+	}
+
+	tracks, err := services.FetchMultipleTracksConcurrent(user, "", ids)
+
+	type SimpleTrack struct {
+		ID      string   `json:"id"`
+		Name    string   `json:"name"`
+		Artists []string `json:"artists"`
+	}
+
+	response := make([]SimpleTrack, 0, len(ids))
+
+	if err != nil {
+		// Graceful fallback on Spotify errors (e.g., 429 rate limit):
+		// return basic objects with only IDs so frontend can still work.
+		for _, oid := range originalIDs {
+			response = append(response, SimpleTrack{
+				ID:      oid,
+				Name:    "",
+				Artists: []string{},
+			})
+		}
+	} else {
+		for _, t := range tracks {
+			if t == nil {
+				continue
+			}
+			var artists []string
+			for _, a := range t.Artists {
+				if name, ok := a["name"].(string); ok {
+					artists = append(artists, name)
+				}
+			}
+			response = append(response, SimpleTrack{
+				// Use the full URI as ID so frontend can map from recommendation IDs
+				ID:      t.Uri,
+				Name:    t.Name,
+				Artists: artists,
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }

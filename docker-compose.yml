@@ -9,6 +9,8 @@ services:
       - ./backend_go/.env
     depends_on:
       - mongo
+      - redis
+      - ml_service
 #  backend_nodejs:
 #    build: ./backend_nodejs
 #    ports:
@@ -28,5 +30,28 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+  ml_service:
+    build: ./ml_service
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+    env_file:
+      - ./ml_service/.env
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - ./feast:/app/feast  # Feast repo is at project root
+      - ./feast/data:/app/feast/data
+  
 volumes:
   mongo_data: 
+  redis_data:

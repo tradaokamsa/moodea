@@ -1,14 +1,22 @@
-# Frontend Dockerfile
-FROM node:18 as build
+FROM node:18-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
+
+COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 RUN npm install
+
 COPY . .
+RUN mkdir -p public
 RUN npm run build
 
-FROM node:18 as production
+FROM node:18-alpine AS runner
 WORKDIR /app
-RUN npm install -g serve
-COPY --from=build /app/build ./build
+ENV NODE_ENV=production
+
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
 EXPOSE 3000
-CMD ["serve", "-s", "build", "-l", "3000"] 
+
+CMD ["npm", "start"]

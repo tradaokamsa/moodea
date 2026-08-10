@@ -1,0 +1,7 @@
+# Feast generated files
+registry/
+data/
+*.db
+*.parquet
+
+__pycache__/

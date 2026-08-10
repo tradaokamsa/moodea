@@ -142,6 +142,26 @@ func CreateTrackCandidateIndexes(ctx context.Context) error {
 	return err
 }
 
+// ApproveAllTrackCandidates marks all unapproved candidates as approved.
+func ApproveAllTrackCandidates(ctx context.Context, approvedBy string) (int64, error) {
+	col := GetTrackCandidateCollection()
+	if col == nil {
+		return 0, mongo.ErrClientDisconnected
+	}
+	update := bson.M{
+		"$set": bson.M{
+			"approved":    true,
+			"approved_by": approvedBy,
+			"approved_at": time.Now().UTC().Unix(),
+		},
+	}
+	result, err := col.UpdateMany(ctx, bson.M{"approved": false}, update)
+	if err != nil {
+		return 0, err
+	}
+	return result.ModifiedCount, nil
+}
+
 func TrackCandidateExistByTrackID(ctx context.Context, trackID string) (bool, error) {
     col := GetTrackCandidateCollection()
     if col == nil {
